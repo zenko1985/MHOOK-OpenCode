@@ -27,7 +27,6 @@
 #define IDC_EDIT1                       1019
 #define IDC_SWITCH_TIMEOUT              1020
 #define IDC_EDIT_WX1                    1020
-#define IDC_M2_CHECK1                   1021
 #define IDC_EDIT_WY1                    1021
 #define IDC_TIMEOUT                     1022
 #define IDC_EDIT_WWIDTH1                1022
@@ -124,17 +123,14 @@
 #define IDC_COMBO1                      1126
 #define IDC_BUTTON_DOPLNITELNO          1300
 #define IDC_CIRCLE_SCALES               1301
-#define IDC_UP3                         1310
-#define IDC_RIGHT3                      1311
-#define IDC_DOWN3                       1312
-#define IDC_LEFT3                       1313
+
 #define IDC_BUTTON6_1                   1380
 #define IDC_BUTTON_WASD                 1400
 #define IDC_RADIO5                      1401
 #define IDC_RADIO6                      1402
 #define IDC_RADIO7                      1403
 #define IDC_CHECK_RIGHT_MB_ISKEY        1404
-#define IDC_CHECK_2ALT                  1405
+
 #define IDC_COMBO_WKEY1                 1500
 #define IDC_COMBO_WKEY2                 1501
 #define IDC_COMBO_WKEY3                 1502

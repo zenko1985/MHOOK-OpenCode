@@ -137,7 +137,12 @@
       <AdditionalDependencies>Winmm.lib;Ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AllowIsolation>true</AllowIsolation>
       <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+      <ControlFlowGuard>Guard</ControlFlowGuard>
+      <CETCompat>true</CETCompat>
     </Link>
+    <ClCompile>
+      <GuardCheck>GuardFastFail</GuardCheck>
+    </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ResourceCompile Include="resource.rc" />

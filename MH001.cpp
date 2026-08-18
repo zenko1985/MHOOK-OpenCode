@@ -52,6 +52,15 @@ int WINAPI WinMain(HINSTANCE hInst,HINSTANCE,LPSTR cline,INT)
 	RECT rect={0,0,MH_WINDOW_SIZE,MH_WINDOW_SIZE};
 	// DPI Awareness для Windows 10/11
 	typedef HRESULT(WINAPI* SetProcessDpiAwarenessFunc)(int);
+	// Hardened DLL search order to prevent DLL hijacking
+	typedef BOOL (WINAPI* SetDefaultDllDirectoriesFunc)(DWORD);
+	HMODULE hKernel32 = GetModuleHandleW(L"kernel32.dll");
+	if(hKernel32) {
+		SetDefaultDllDirectoriesFunc pSetDefaultDllDirs = (SetDefaultDllDirectoriesFunc)GetProcAddress(hKernel32, "SetDefaultDllDirectories");
+		if(pSetDefaultDllDirs) {
+			pSetDefaultDllDirs(LOAD_LIBRARY_SEARCH_SYSTEM32 | LOAD_LIBRARY_SEARCH_APPLICATION_DIR);
+		}
+	}
 	HMODULE hShcore = LoadLibraryW(L"Shcore.dll");
 	if (hShcore) {
 		SetProcessDpiAwarenessFunc pSetProcessDpiAwareness =
@@ -72,7 +81,7 @@ int WINAPI WinMain(HINSTANCE hInst,HINSTANCE,LPSTR cline,INT)
 	EnumDisplaySettings (NULL, ENUM_CURRENT_SETTINGS, &dm);
 	screen_x_real=dm.dmPelsWidth;
 	screen_y_real=dm.dmPelsHeight;
-	screen_scale=((double)screen_x)/dm.dmPelsWidth;
+	screen_scale = dm.dmPelsWidth > 0 ? ((double)screen_x)/dm.dmPelsWidth : 1.0;
 	// Создаём окно с кружком
 	CircleWindow::Init();
 	// С самого начала пытаемся загрузить конфигурацию по умолчанию

@@ -4,6 +4,7 @@
 #include <shlwapi.h>
 #include <shellapi.h>
 #include <tlhelp32.h>
+#include <strsafe.h>
 #pragma comment(lib, "shlwapi.lib")
 #include "Bitmap.h"
 #include "Settings.h"
@@ -106,16 +107,46 @@ LRESULT CALLBACK WndProc(HWND hwnd,
 							do {
 								if(MHSettings::flag_autoclick_ahk && MHSettings::flag_autoclick_ahk_loaded) {
 									if(_tcsicmp(pe.szExeFile, _T("Авто клик.exe")) == 0) {
-										MHSettings::flag_autoclick_ahk_loaded=false;
-										HANDLE hProc = OpenProcess(PROCESS_TERMINATE, FALSE, pe.th32ProcessID);
-										if(hProc) { TerminateProcess(hProc, 0); CloseHandle(hProc); }
+										TCHAR modPath[MAX_PATH];
+										HANDLE hSnapMod = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, pe.th32ProcessID);
+										if(hSnapMod != INVALID_HANDLE_VALUE) {
+											MODULEENTRY32 me = {sizeof(MODULEENTRY32)};
+											if(Module32First(hSnapMod, &me)) {
+												GetModuleFileName(NULL, modPath, MAX_PATH);
+												PathRemoveFileSpec(modPath);
+												TCHAR targetDir[MAX_PATH];
+												StringCchCopy(targetDir, MAX_PATH, me.szExePath);
+												PathRemoveFileSpec(targetDir);
+												if(_tcsicmp(modPath, targetDir) == 0) {
+													MHSettings::flag_autoclick_ahk_loaded=false;
+													HANDLE hProc = OpenProcess(PROCESS_TERMINATE, FALSE, pe.th32ProcessID);
+													if(hProc) { TerminateProcess(hProc, 0); CloseHandle(hProc); }
+												}
+											}
+											CloseHandle(hSnapMod);
+										}
 									}
 								}
 								if(MHSettings::flag_wheel_ahk && MHSettings::flag_wheel_ahk_loaded) {
 									if(_tcsicmp(pe.szExeFile, _T("Колёсико.exe")) == 0 || _tcsicmp(pe.szExeFile, _T("Колесико.exe")) == 0) {
-										MHSettings::flag_wheel_ahk_loaded=false;
-										HANDLE hProc = OpenProcess(PROCESS_TERMINATE, FALSE, pe.th32ProcessID);
-										if(hProc) { TerminateProcess(hProc, 0); CloseHandle(hProc); }
+										TCHAR modPath[MAX_PATH];
+										HANDLE hSnapMod = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, pe.th32ProcessID);
+										if(hSnapMod != INVALID_HANDLE_VALUE) {
+											MODULEENTRY32 me = {sizeof(MODULEENTRY32)};
+											if(Module32First(hSnapMod, &me)) {
+												GetModuleFileName(NULL, modPath, MAX_PATH);
+												PathRemoveFileSpec(modPath);
+												TCHAR targetDir[MAX_PATH];
+												StringCchCopy(targetDir, MAX_PATH, me.szExePath);
+												PathRemoveFileSpec(targetDir);
+												if(_tcsicmp(modPath, targetDir) == 0) {
+													MHSettings::flag_wheel_ahk_loaded=false;
+													HANDLE hProc = OpenProcess(PROCESS_TERMINATE, FALSE, pe.th32ProcessID);
+													if(hProc) { TerminateProcess(hProc, 0); CloseHandle(hProc); }
+												}
+											}
+											CloseHandle(hSnapMod);
+										}
 									}
 								}
 							} while(Process32Next(hSnap, &pe));
@@ -197,10 +228,12 @@ LRESULT CALLBACK WndProc(HWND hwnd,
 		}
 			break;
 		case WM_DISPLAYCHANGE:
-			//screen_x=(LONG)((SHORT)LOWORD(lparam));
-			//screen_y=(LONG)((SHORT)HIWORD(lparam));
-			screen_x=LOWORD(lparam);
-			screen_y=HIWORD(lparam);
+			{
+				WORD cx = LOWORD(lparam);
+				WORD cy = HIWORD(lparam);
+				screen_x = (LONG)cx;
+				screen_y = (LONG)cy;
+			}
 			// Козлиная система разрешений экрана в windows8.1...
 			DEVMODE dm;
 			ZeroMemory (&dm, sizeof (dm));
@@ -238,8 +271,11 @@ LRESULT CALLBACK WndProc(HWND hwnd,
 				if (ext && _tcsicmp(ext, _T(".MHOOK")) == 0) {
 					isMhook = true;
 				} else if (ext && _tcsicmp(ext, _T(".MHOO")) == 0) {
-					_tcscpy(ext, _T(".MHOOK"));
-					isMhook = true;
+					size_t extLen = _tcslen(ext);
+					if (extLen + 2 < MAX_PATH) {
+						_tcscpy_s(ext, MAX_PATH - (ext - filename), _T(".MHOOK"));
+						isMhook = true;
+					}
 				}
 				if (isMhook) {
 					MHSettings::OpenMHookConfig(hwnd, filename);
@@ -248,13 +284,18 @@ LRESULT CALLBACK WndProc(HWND hwnd,
 					if (targetWnd && targetWnd != hwnd) {
 						TCHAR windowTitle[256];
 						GetWindowText(targetWnd, windowTitle, 256);
+						windowTitle[255] = _T('\0');
 						if (windowTitle[0]) {
 							TCHAR mhookPath[MAX_PATH];
 							GetModuleFileName(NULL, mhookPath, MAX_PATH);
 							PathRemoveFileSpec(mhookPath);
-							PathAppend(mhookPath, windowTitle);
-							_tcscat(mhookPath, _T(".MHOOK"));
-							if (GetFileAttributes(mhookPath) != INVALID_FILE_ATTRIBUTES) {
+							size_t curLen = _tcslen(mhookPath);
+							size_t titleLen = _tcslen(windowTitle);
+							const TCHAR suffix[] = _T(".MHOOK");
+							size_t suffixLen = _tcslen(suffix);
+							if (curLen + 1 + titleLen + suffixLen < MAX_PATH) {
+								PathAppend(mhookPath, windowTitle);
+								_tcscat_s(mhookPath, MAX_PATH, suffix);
 								MHSettings::OpenMHookConfig(hwnd, mhookPath);
 							}
 						}

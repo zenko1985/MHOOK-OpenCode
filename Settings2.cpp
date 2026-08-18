@@ -1,4 +1,6 @@
 ﻿#include <Windows.h>
+#include <tchar.h>
+#include <strsafe.h>
 #include "resource.h"
 #include "Settings.h"
 #include "MagicWindow.h"
@@ -342,7 +344,7 @@ void MHSettings::Save2(FILE *f)
 {
 	int i;
 	MagicWindow *mw;
-	char lcbuffer[256];
+	char lcbuffer[1024];
 	// Для проверки, что количество окон совпадает
 	fprintf(f,"%d", NUM_MAGIC_WINDOWS);
 	for(i=0;i<NUM_MAGIC_WINDOWS;i++)
@@ -352,8 +354,8 @@ void MHSettings::Save2(FILE *f)
 		fprintf(f,"\n%d %d %d %d %d %d %d %d %d %d\n", mw->active, mw->mw_color, mw->x, mw->y, mw->width, mw->height,
 			mw->button_or_switch, mw->mouse_or_eytracker, mw->button_index, mw->mw_group);
 		// Параметр-строка
-		WideCharToMultiByte(CP_UTF8,0,mw->mw_name,-1,lcbuffer,256,NULL,NULL);
-		fputs(lcbuffer,f);
+		int cbLen = WideCharToMultiByte(CP_UTF8,0,mw->mw_name,-1,lcbuffer,sizeof(lcbuffer),NULL,NULL);
+		if(cbLen > 0 && cbLen <= sizeof(lcbuffer)) fputs(lcbuffer,f);
 	}
 }
 //====================================================================================
@@ -363,7 +365,7 @@ int MHSettings::Load2(FILE *f,int wcount)
 {
 	int i,len;
 	MagicWindow *mw;
-	char lcbuffer[256];
+	char lcbuffer[1024];
 	for(i=0;i<wcount;i++)
 	{
 		mw=&MagicWindow::magic_wnd[i];
@@ -380,14 +382,15 @@ int MHSettings::Load2(FILE *f,int wcount)
 		int total_height = rc.bottom - rc.top;
 		MoveWindow(mw->MWhwnd, mw->x, mw->y, total_width, total_height, FALSE);
 		// Параметр-строка
-		if(NULL==fgets(lcbuffer,256,f)) return 1;
+		if(NULL==fgets(lcbuffer,sizeof(lcbuffer),f)) return 1;
 		len=static_cast<int>(strlen(lcbuffer));
 		if(len>0)
 		{
 			if('\n'==lcbuffer[len-1]) lcbuffer[len-1]=0;
 			if(len>1 && '\r'==lcbuffer[len-2]) lcbuffer[len-2]=0;
 		}
-		MultiByteToWideChar(CP_UTF8,0,lcbuffer,-1,mw->mw_name,_countof(mw->mw_name));
+		int wideLen = MultiByteToWideChar(CP_UTF8,0,lcbuffer,-1,mw->mw_name,_countof(mw->mw_name));
+		if(wideLen == 0) mw->mw_name[0] = 0;
 		// Обновляем заголовок окна сразу после загрузки имени
 		if(mw->MWhwnd) SetWindowText(mw->MWhwnd, mw->mw_name);
 	}

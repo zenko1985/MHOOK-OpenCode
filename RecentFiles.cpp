@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <set>
 #include <tchar.h>
+#include <strsafe.h>
 #include <fstream>
 HWND RecentFiles::hListBox = NULL;
 std::vector<RecentFileInfo> RecentFiles::files;
@@ -20,25 +21,32 @@ void RecentFiles::LoadEmbeddedFiles() {
 	DWORD size = SizeofResource(NULL, hRes);
 	const BYTE* pData = (const BYTE*)LockResource(hData);
 	if (!pData || size < 4) return;
-	DWORD numFiles = *(DWORD*)pData;
+	DWORD numFiles;
+	memcpy(&numFiles, pData, sizeof(DWORD));
 	const BYTE* ptr = pData + 4;
+	const BYTE* pDataEnd = pData + size;
 	embeddedFiles.clear();
+	const DWORD MAX_EMBEDDED_SIZE = 10 * 1024 * 1024; // 10 MB max per entry
 	for (DWORD i = 0; i < numFiles; i++) {
-		if (ptr + 4 > pData + size) break;
-		DWORD nameLen = *(DWORD*)ptr;
+		if (ptr + 4 > pDataEnd) break;
+		DWORD nameLen;
+		memcpy(&nameLen, ptr, sizeof(DWORD));
 		ptr += 4;
-		if (ptr + nameLen * 2 > pData + size) break;
+		if ((size_t)nameLen * 2 > (size_t)(pDataEnd - ptr)) break;
 		std::basic_string<TCHAR> name;
 		name.resize(nameLen);
 		memcpy(&name[0], ptr, nameLen * 2);
 		ptr += nameLen * 2;
-		if (ptr + 8 > pData + size) break;
-		ULONGLONG filetime = *(ULONGLONG*)ptr;
+		if (ptr + 8 > pDataEnd) break;
+		ULONGLONG filetime;
+		memcpy(&filetime, ptr, sizeof(ULONGLONG));
 		ptr += 8;
-		if (ptr + 4 > pData + size) break;
-		DWORD contentLen = *(DWORD*)ptr;
+		if (ptr + 4 > pDataEnd) break;
+		DWORD contentLen;
+		memcpy(&contentLen, ptr, sizeof(DWORD));
 		ptr += 4;
-		if (ptr + contentLen > pData + size) break;
+		if (contentLen > MAX_EMBEDDED_SIZE) break;
+		if (ptr + contentLen > pDataEnd) break;
 		RecentFileInfo info;
 		info.filename = name;
 		info.fullpath = name;
@@ -77,13 +85,14 @@ bool RecentFiles::LoadEmbeddedConfig(HWND hwnd, const RecentFileInfo& file) {
 			safeName += c;
 		}
 	}
+	if (safeName == _T("..") || safeName.empty()) return false;
 	TCHAR exePath[MAX_PATH];
 	GetModuleFileName(NULL, exePath, MAX_PATH);
 	PathRemoveFileSpec(exePath);
 	TCHAR tempFile[MAX_PATH];
-	wcscpy_s(tempFile, exePath);
+	StringCchCopy(tempFile, MAX_PATH, exePath);
 	PathAppend(tempFile, safeName.c_str());
-	wcscat_s(tempFile, _T(".mhook"));
+	StringCchCat(tempFile, MAX_PATH, _T(".mhook"));
 	std::ofstream fout;
 	fout.open(tempFile, std::ios::binary);
 	if (!fout.is_open()) return false;
@@ -211,14 +220,15 @@ void RecentFiles::OnDialogFileSelected(HWND hDlg, int comboId, int index) {
 				if (dotPos != std::basic_string<TCHAR>::npos) {
 					displayName = displayName.substr(0, dotPos);
 				}
+				if (displayName == _T("..") || displayName.empty()) return;
 				lastLoadedName = displayName;
 				TCHAR exePath[MAX_PATH];
 				GetModuleFileName(NULL, exePath, MAX_PATH);
 				PathRemoveFileSpec(exePath);
 				TCHAR tempFile[MAX_PATH];
-				wcscpy_s(tempFile, exePath);
+				StringCchCopy(tempFile, MAX_PATH, exePath);
 				PathAppend(tempFile, displayName.c_str());
-				wcscat_s(tempFile, _T(".mhook"));
+				StringCchCat(tempFile, MAX_PATH, _T(".mhook"));
 				if (CopyFile(file.fullpath.c_str(), tempFile, FALSE)) {
 					MHSettings::OpenMHookConfig(hDlg, tempFile);
 					SendDlgItemMessage(hDlg, IDC_EDIT1, WM_SETTEXT, 0, (LPARAM)displayName.c_str());
@@ -232,13 +242,41 @@ void RecentFiles::OnDialogFileSelected(HWND hDlg, int comboId, int index) {
 		}
 	}
 }
+std::basic_string<TCHAR> RecentFiles::GetFileName(int index) {
+	if (index >= 0 && index < (int)files.size()) {
+		std::basic_string<TCHAR> name = files[index].filename;
+		size_t dotPos = name.find_last_of(_T('.'));
+		if (dotPos != std::basic_string<TCHAR>::npos) {
+			name = name.substr(0, dotPos);
+		}
+		return name;
+	}
+	return _T("");
+}
+int RecentFiles::FindByPrefix(const TCHAR* prefix) {
+	if (!prefix || !prefix[0]) return -1;
+	TCHAR prefixUpper[256];
+	StringCchCopy(prefixUpper, 256, prefix);
+	CharUpperBuff(prefixUpper, static_cast<DWORD>(_tcslen(prefixUpper)));
+	for (size_t i = 0; i < files.size(); i++) {
+		TCHAR fnameUpper[256];
+		StringCchCopy(fnameUpper, 256, files[i].filename.c_str());
+		CharUpperBuff(fnameUpper, static_cast<DWORD>(_tcslen(fnameUpper)));
+		TCHAR* dotPos = _tcsrchr(fnameUpper, _T('.'));
+		if (dotPos) *dotPos = _T('\0');
+		if (_tcsncmp(fnameUpper, prefixUpper, _tcslen(prefixUpper)) == 0) {
+			return static_cast<int>(i);
+		}
+	}
+	return -1;
+}
 bool RecentFiles::FindByWindowTitle(HWND hwnd, TCHAR* title) {
 	LoadEmbeddedFiles();
 	TCHAR titleUpper[256];
-	wcscpy_s(titleUpper, title);
+	StringCchCopy(titleUpper, 256, title);
 	TCHAR titleClean[256];
 	int j = 0;
-	for (int i = 0; titleUpper[i]; i++) {
+	for (int i = 0; titleUpper[i] && j < 255; i++) {
 		if (titleUpper[i] != _T(' ') && titleUpper[i] != _T('-') && titleUpper[i] != _T('_') &&
 			titleUpper[i] != _T('(') && titleUpper[i] != _T(')') && titleUpper[i] != _T('[') && titleUpper[i] != _T(']')) {
 			titleClean[j++] = titleUpper[i];
@@ -250,7 +288,7 @@ bool RecentFiles::FindByWindowTitle(HWND hwnd, TCHAR* title) {
 	const RecentFileInfo* bestMatch = nullptr;
 	for (const auto& file : embeddedFiles) {
 		TCHAR fnameUpper[256];
-		wcscpy_s(fnameUpper, file.filename.c_str());
+			StringCchCopy(fnameUpper, 256, file.filename.c_str());
 		CharUpperBuff(fnameUpper, static_cast<DWORD>(_tcslen(fnameUpper)));
 		int score = 0;
 		const TCHAR* p = _tcsstr(fnameUpper, titleClean);
@@ -267,17 +305,17 @@ bool RecentFiles::FindByWindowTitle(HWND hwnd, TCHAR* title) {
 	PathRemoveFileSpec(exePath);
 	PathAddBackslash(exePath);
 	TCHAR searchPattern[MAX_PATH];
-	wcscpy_s(searchPattern, exePath);
-	wcscat_s(searchPattern, _T("*.MHOOK"));
+	StringCchCopy(searchPattern, MAX_PATH, exePath);
+	StringCchCat(searchPattern, MAX_PATH, _T("*.MHOOK"));
 	WIN32_FIND_DATA fd;
 	HANDLE hFind = FindFirstFile(searchPattern, &fd);
 	if (hFind != INVALID_HANDLE_VALUE) {
 		do {
 			TCHAR fnameUpper[256];
-			wcscpy_s(fnameUpper, fd.cFileName);
+			StringCchCopy(fnameUpper, 256, fd.cFileName);
 			TCHAR fnameClean[256];
 			int k = 0;
-			for (int i = 0; fnameUpper[i]; i++) {
+			for (int i = 0; fnameUpper[i] && k < 255; i++) {
 				if (fnameUpper[i] != _T(' ') && fnameUpper[i] != _T('-') && fnameUpper[i] != _T('_') &&
 					fnameUpper[i] != _T('(') && fnameUpper[i] != _T(')') && fnameUpper[i] != _T('[') && fnameUpper[i] != _T(']')) {
 					fnameClean[k++] = fnameUpper[i];
@@ -300,7 +338,7 @@ bool RecentFiles::FindByWindowTitle(HWND hwnd, TCHAR* title) {
 				info.isEmbedded = false;
 				files.push_back(info);
 				TCHAR displayName[256];
-				wcscpy_s(displayName, fd.cFileName);
+				StringCchCopy(displayName, 256, fd.cFileName);
 				TCHAR* dotPos = _tcsrchr(displayName, _T('.'));
 				if (dotPos) *dotPos = _T('\0');
 				lastLoadedName = displayName;
@@ -311,16 +349,16 @@ bool RecentFiles::FindByWindowTitle(HWND hwnd, TCHAR* title) {
 		} while (FindNextFile(hFind, &fd));
 		FindClose(hFind);
 	}
-	wcscpy_s(searchPattern, exePath);
-	wcscat_s(searchPattern, _T("*.mhook"));
+	StringCchCopy(searchPattern, MAX_PATH, exePath);
+	StringCchCat(searchPattern, MAX_PATH, _T("*.mhook"));
 	hFind = FindFirstFile(searchPattern, &fd);
 	if (hFind != INVALID_HANDLE_VALUE) {
 		do {
 			TCHAR fnameUpper[256];
-			wcscpy_s(fnameUpper, fd.cFileName);
+			StringCchCopy(fnameUpper, 256, fd.cFileName);
 			TCHAR fnameClean[256];
 			int k = 0;
-			for (int i = 0; fnameUpper[i]; i++) {
+			for (int i = 0; fnameUpper[i] && k < 255; i++) {
 				if (fnameUpper[i] != _T(' ') && fnameUpper[i] != _T('-') && fnameUpper[i] != _T('_') &&
 					fnameUpper[i] != _T('(') && fnameUpper[i] != _T(')') && fnameUpper[i] != _T('[') && fnameUpper[i] != _T(']')) {
 					fnameClean[k++] = fnameUpper[i];
@@ -343,7 +381,7 @@ bool RecentFiles::FindByWindowTitle(HWND hwnd, TCHAR* title) {
 				info.isEmbedded = false;
 				files.push_back(info);
 				TCHAR displayName[256];
-				wcscpy_s(displayName, fd.cFileName);
+				StringCchCopy(displayName, 256, fd.cFileName);
 				TCHAR* dotPos = _tcsrchr(displayName, _T('.'));
 				if (dotPos) *dotPos = _T('\0');
 				lastLoadedName = displayName;
@@ -357,7 +395,7 @@ bool RecentFiles::FindByWindowTitle(HWND hwnd, TCHAR* title) {
 	if (bestMatch) {
 		LoadEmbeddedConfig(hwnd, *bestMatch);
 		TCHAR displayName[256];
-		wcscpy_s(displayName, bestMatch->filename.c_str());
+		StringCchCopy(displayName, 256, bestMatch->filename.c_str());
 		TCHAR* dotPos = _tcsrchr(displayName, _T('.'));
 		if (dotPos) *dotPos = _T('\0');
 		lastLoadedName = displayName;

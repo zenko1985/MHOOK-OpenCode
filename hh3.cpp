@@ -68,7 +68,18 @@ int MHookHandler3::OnMouseMove(LONG _x, LONG _y)
 		}
 		else // а вот здесь нажимаем не всегда
 		{
+			// Если мышь полностью остановилась (dx=0, dy=0) - не обрабатываем
+			if((0==dx)&&(0==dy))
+			{
+#ifdef _DEBUG
+				swprintf(debug_buf_3,_countof(debug_buf_3),L"STOP dx: %d  dy: %d Qspeed: %f time: %lu\n", dx,dy,Qspeed, time_now-last_any_time);
+				OutputDebugString(debug_buf_3);
+#endif
+			}
+		else // мышь движется, но медленно
+		{
 			// для начала вычислим скорость
+			if(time_now==last_any_time) return 0;
 			Qspeed=100.0f*(dx*dx+dy*dy)/(time_now-last_any_time); // пикселов в квадрате за 100 мс
 			if(Qspeed>MHSettings::minimal_mouse_speed) // Это элемент быстрого движения!!!
 			{
@@ -115,10 +126,21 @@ int MHookHandler3::OnMouseMove(LONG _x, LONG _y)
 				OutputDebugString(debug_buf_3);
 #endif
 				}
-				else // Всё-таки настояли на SLOW! (теперь сюда попадают и dx==0, dy==0)
+			else // Всё-таки настояли на SLOW!
+			{
+				// Подавляем обработку медленных движений в течение200мс после быстрого
+				// чтобы маленькие движения при замедлении не нажимали клавиши
+				if((time_now-last_fast_time<200)&&(last_fast_time!=0))
 				{
-					// Всё-таки обрабатываем движение (копипаст из начала)
-					position=MHVector::NewValues(dx,dy);
+#ifdef _DEBUG
+				swprintf(debug_buf_3,_countof(debug_buf_3),L"SUPP dx: %d  dy: %d Qspeed: %f time: %lu ftime: %lu\n", dx,dy,Qspeed, time_now-last_any_time, time_now-last_fast_time);
+				OutputDebugString(debug_buf_3);
+#endif
+				}
+				else
+				{
+				// Всё-таки обрабатываем движение (копипаст из начала)
+				position=MHVector::NewValues(dx,dy);
 					IsOp=IsOpposite(last_any_position, position);
 					if(position>=0) last_any_position=position;
 					if(IsOp) // Поменяли направление - нужно считать этот отсчёт - BAST (B-ST в диагностике)
@@ -152,8 +174,10 @@ int MHookHandler3::OnMouseMove(LONG _x, LONG _y)
 						OutputDebugString(debug_buf_3);
 #endif
 					}
-				} // обрабатываем движение
+			} // else - обрабатываем движение
+			} // мышь движется, но медленно
 			} // низкая скорость
+		} // else flag_skip_fast
 		}
 /*
 		// Теперь берём цифры из поля  "быстрое движение - это со скоростью, большей..."

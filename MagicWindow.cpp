@@ -426,7 +426,7 @@ void MagicWindow::ShowRuntime()
 				g_SetWindowBand(magic_wnd[i].MWhwnd, HWND_TOPMOST, ZBID_SYSTEM_TOOLS);
 			}
 			// Есть ли среди активных окон такие, которым нужен Timer 5
-			if((dlg_scancodes[magic_wnd[i].button_index].value==0xE102)||
+			if(magic_wnd[i].button_index >= 0 && magic_wnd[i].button_index < MH_NUM_SCANCODES_EXTRA &&
 				(dlg_scancodes[magic_wnd[i].button_index].value==0xE103)||
 				(dlg_scancodes[magic_wnd[i].button_index].value==0xE104)||
 				(dlg_scancodes[magic_wnd[i].button_index].value==0xE105))
@@ -441,6 +441,7 @@ void MagicWindow::ShowRuntime()
 //======================================================================
 void MagicWindow::Press()
 {
+	if(button_index < 0 || button_index >= MH_NUM_SCANCODES_EXTRA) return;
 	BYTE lobyte=LOBYTE(dlg_scancodes[button_index].value),hibyte=HIBYTE(dlg_scancodes[button_index].value);
 	if(pressed) pressed=false;
 	else pressed=true;

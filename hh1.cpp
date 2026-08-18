@@ -187,104 +187,19 @@ int MHookHandler1::OnMouseMove(LONG _x, LONG _y)
 		} // правая кнопка не нажата
 		else // нажата правая кнопка. Внимание!!!! Здесь может быть 8 позиций, тогда движение с правой кнопкой игнорируем !!!!
 		{
-			// Изменение 18.04 - позволяем альтернативным кодировкам  работать и в 8 позициях
-			//if(4==MHSettings::GetNumPositions())
-			//{
-				if(!MHSettings::flag_alt2) // Так было, пока не ввели вторую альтернативную: движения с нажатой правой вызывали нажатия c таймером
-				{
-					// обработка правой кнопки мыши
-					if(0<=position) // -2=мышь подвинулась на недостаточное растояние, -1= направление не изменилось
-					{
-						//MHKeypad::Press(position,true, 6); // По движению правой кнопки нажимать альтернативные клавиши из первой раскладки
-						MHKeypad::Press(position,true, alt2_offset);
-						position_mem=position;
-					}
-					// Таймер взводим заново при любом движении мыши, если было хоть что-то нажато ранее
-					// то есть -1!=position_mem
-					if(-1!=position_mem)
-					{
-						last_time=timeGetTime();
-						SetTimer(MHhwnd,1,MHSettings::timeout_after_move,NULL);
-					}
-				}
-				else // flag_alt2 - теперь движения с нажатой правой - это выбор раскладки
-				{
-					// Изменение 18.04 - позволяем альтернативным кодировкам  работать и в 8 позициях
-					if(4==MHSettings::GetNumPositions())
-					{
-						switch(position)
-						{
-						case 1: // стрелка впрваво - первая альтернативная
-							// Первым делом - отпустить нажатые клавиши
-							MHKeypad::Reset(alt2_offset);
-							position_mem=-1;
-							switch(alt2_offset)
-							{
-							case 6: // Включена уже, выключить
-								alt2_offset=0;
-								break;
-							case 0: // основная, поменять
-							case 11: // Включена вторая, поменять
-								alt2_offset=6;
-								break;
-							}
-							break;
-							case 3: // стрелка влево - выбор второй альтернативной
-							// Первым делом - отпустить нажатые клавиши
-							MHKeypad::Reset(alt2_offset);
-							position_mem=-1;
-							switch(alt2_offset)
-							{
-							case 11: // Включена уже, выключить
-								alt2_offset=0;
-								break;
-							case 0: // основная, поменять
-							case 6: // Включена вторая, поменять
-								alt2_offset=11;
-								break;
-							}
-							break;
-							// Остальные направления (стрелки вверх и вниз) игнорируем
-						}	// switch
-					} // 4 позиции
-					else // (8 позиций) Изменение 18.04 - позволяем альтернативным кодировкам  работать и в 8 позициях
-					{
-						if((position>0)&&(position<4)) // правая полусфера.
-						{
-							MHKeypad::Reset(alt2_offset);
-							position_mem=-1;
-							switch(alt2_offset)
-							{
-							case 6: // Включена уже, выключить
-								alt2_offset=0;
-								break;
-							case 0: // основная, поменять
-							case 11: // Включена вторая, поменять
-								alt2_offset=6;
-								break;
-							}
-						}
-						else if((position>4)) // левая полусфера
-						{
-							// Первым делом - отпустить нажатые клавиши
-							MHKeypad::Reset(alt2_offset);
-							position_mem=-1;
-							switch(alt2_offset)
-							{
-							case 11: // Включена уже, выключить
-								alt2_offset=0;
-								break;
-							case 0: // основная, поменять
-							case 6: // Включена вторая, поменять
-								alt2_offset=11;
-								break;
-							}
-						}
-						// Остальные направления (стрелки вверх и вниз) игнорируем
-					} // 8 позиций
-				} // выставлен флаг alt2, меняем раскладки
-			// Изменение 18.04 - позволяем альтернативным кодировкам  работать и в 8 позициях
-			//} // 4 позиции, а в 8 позициях с правой кнопкой ничего не делаем вообще
+			// обработка правой кнопки мыши
+			if(0<=position) // -2=мышь подвинулась на недостаточное растояние, -1= направление не изменилось
+			{
+				MHKeypad::Press(position,true, alt2_offset);
+				position_mem=position;
+			}
+			// Таймер взводим заново при любом движении мыши, если было хоть что-то нажато ранее
+			// то есть -1!=position_mem
+			if(-1!=position_mem)
+			{
+				last_time=timeGetTime();
+				SetTimer(MHhwnd,1,MHSettings::timeout_after_move,NULL);
+			}
 		} // правая кнопка нажата
 	} // if initialized
 	if(!initialized) initialized=true;
@@ -314,10 +229,7 @@ bool MHookHandler1::OnRDown()
 	MHVector::Reset();
 	// Почему-то Reset не включает перерисовку
 	InvalidateRect(MHhwnd,NULL,TRUE);
-	if(!MHSettings::flag_alt2) // Так было, пока не ввели вторую альтернативную
-	{
-		alt2_offset=6;
-	}
+	alt2_offset=6;
 	return true; // подавляйте правый клик
 }
 bool MHookHandler1::OnRUp()
@@ -331,10 +243,7 @@ bool MHookHandler1::OnRUp()
 	position_mem_opposite=-1;
 	// Начинаем новый отсчет движений
 	MHVector::Reset();
-	if(!MHSettings::flag_alt2) // Так было, пока не ввели вторую альтернативную
-	{
-		alt2_offset=0;
-	}
+	alt2_offset=0;
 	flag_opposite_direction=false;
 	// Почему-то Reset не включает перерисовку
 	InvalidateRect(MHhwnd,NULL,TRUE);

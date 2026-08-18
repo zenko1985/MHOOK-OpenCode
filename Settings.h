@@ -19,7 +19,7 @@ public:
 	static DWORD timeout_after_move;
 	static LONG minimal_mouse_speed, timeout_mouse_switch, timeout_mouse_click, deadx, deady;
 	static bool flag_enable_speed_button;
-	static bool flag_2moves, flag_2moves_mode1, flag_change_direction_ontheway, flag_right_mb_iskey, flag_alt2,flag_no_move_right_mb,
+	static bool flag_2moves, flag_2moves_mode1, flag_change_direction_ontheway, flag_right_mb_iskey,flag_no_move_right_mb,
 		flag_mode5autoclick, flag_right_mb_doubleclick,
 		flag_left_mb_push_twice, flag_right_mb_push_twice,
 		flag_downall, flag_skip_fast, flag_up_immediately;

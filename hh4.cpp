@@ -59,9 +59,11 @@ int MHookHandler4::OnMouseMove(LONG _x, LONG _y)
 			// Это работает частично, начало и конец быстрого движения не ловятся, как в режиме 3
 			if(MHSettings::flag_skip_fast)
 			{
+				if(time_now!=last_any_time) {
 				Qspeed=100.0f*(dx*dx)/(time_now-last_any_time); // пикселов в квадрате за 100 мс
 				if(Qspeed>MHSettings::minimal_mouse_speed) // Это элемент быстрого движения!!!
 					dx=0;
+				}
 			}
 			//position=MHVector::NewValues(dx,0); // Движение по оси Y не передаём
 			position=MHVector::NewValues(dx,dy); // Движение по оси Y ПЕРЕДАЁМ
@@ -114,9 +116,11 @@ int MHookHandler4::OnMouseMove(LONG _x, LONG _y)
 			// Это работает частично, начало и конец быстрого движения не ловятся, как в режиме 3
 			if(MHSettings::flag_skip_fast)
 			{
+				if(time_now!=last_any_time) {
 				Qspeed=100.0f*(dy*dy)/(time_now-last_any_time); // пикселов в квадрате за 100 мс
 				if(Qspeed>MHSettings::minimal_mouse_speed) // Это элемент быстрого движения!!!
 					dy=0;
+				}
 			}
 			// position=MHVector::NewValues(0,dy); // Движение по оси X не передаём
 			position=MHVector::NewValues(dx,dy); // Движение по оси X ПЕРЕДАЁМ

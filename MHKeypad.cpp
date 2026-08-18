@@ -31,6 +31,8 @@ void MHKeypad::Init(const WORD (&scancodes)[17])
 // Тупо нажимает-отжимает одну из 4 клавиш
 bool MHKeypad::Press4(int position, bool down, int shift)
 {
+	if (position + shift < 0 || position + shift >= 15) return false;
+	if (position + shift >= 17) return false;
 #ifdef _DEBUG
 	//if((position<0)||(position>3))
 	if((position<0)||(position>10)) // Теперь бывает и 5, и 10 (на правой кнопке мыши)
@@ -162,6 +164,7 @@ bool MHKeypad::Press4(int position, bool down, int shift)
 // перерисовывает экран
 void MHKeypad::Press(int position, bool down, int shift)
 {
+	if (position < 0 || position > 7) return;
 	// Нажатые кнопки повторно не нажимаем, а отжатые - не отжимаем
 	if(down && (position==keypad_position))
 	{
@@ -287,6 +290,7 @@ void MHKeypad::Reset(int shift)
 //=========================================================================
 void MHKeypad::Press8(int position, bool down)
 {
+	if (position < 0 || position > 7) return;
 	if(true==down)
 	{
 		// сначала отпустим старую

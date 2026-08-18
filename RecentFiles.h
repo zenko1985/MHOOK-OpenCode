@@ -14,6 +14,8 @@ class RecentFiles {
 public:
 	static void PopulateDialogList(HWND hDlg, int comboId);
 	static void OnDialogFileSelected(HWND hDlg, int listboxId, int index);
+	static int FindByPrefix(const TCHAR* prefix);
+	static std::basic_string<TCHAR> GetFileName(int index);
 	static void Shutdown();
 	static bool FindByWindowTitle(HWND hwnd, TCHAR* title);
 	static std::basic_string<TCHAR> GetLastLoadedName();

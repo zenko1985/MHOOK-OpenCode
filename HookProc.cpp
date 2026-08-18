@@ -287,7 +287,7 @@ case WM_RBUTTONUP:
 				else */
 				if(flag_left_button_key&&(!flag_magic_left_click)) // держали недолго
 				{
-					MHSettings::hh->OnLUp();
+					if(MHSettings::hh) MHSettings::hh->OnLUp();
 					return 1;
 				}
 				if(flag_magic_left_click) flag_magic_left_click=false;
